@@ -1,22 +1,37 @@
+/*
+Covid 19 Data Exploration 
+Skills used: Joins, CTE's Temp Tables,Aggreagte Functions
+*/
 SELECT *
 FROM `flowing-encoder-387117.COVID.Covid_Vaccinations` 
+where continent is not null
 order by 3, 4;
 
--- Looking at Total Cases vs Total Deaths
--- Shows likelihood of dying if you contract Covid
+-- Select Data that we are going to be starting with
+
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM `flowing-encoder-387117.COVID.Covid_Deaths` 
+where continent is not null
+order by 1, 2;
+
+-- Total Cases vs Total Deaths
+-- Shows likelihood of dying if you contract Covid in your country 
 
 SELECT location, date, total_cases,total_deaths, (total_deaths/total_cases)*100 as DeathPercentage
 FROM `flowing-encoder-387117.COVID.Covid_Deaths` 
+where location = 'United States'
+and continent is not null
 order by 1, 2;
 
--- Looking at Total Cases vs Population
--- Shows what percentage of population got Covid 
+-- Total Cases vs Population
+-- Shows what percentage of population infected with Covid
 
 SELECT location, date, population, total_cases, (total_cases
 /population)*100 as CovidInfectedPercentage
 FROM `flowing-encoder-387117.COVID.Covid_Deaths` 
-where location = 'United States'
 order by 1, 2;
+
+-- Countries with Highest Infection Rate compared to Population
 
 SELECT location, population, max(total_cases) as HighestInfectionCount, max((total_cases
 /population))*100 as CovidInfectedPercentage
@@ -33,12 +48,13 @@ where continent is not null
 group by location
 order by TotalDeathCount desc;
 
+-- Breaking down by continent
 -- Showing Continents & income classes with the Highest Death Count per Population
 
-SELECT location, max(cast(total_deaths as int)) as TotalDeathCount
+SELECT continent, max(cast(total_deaths as int)) as TotalDeathCount
 FROM `flowing-encoder-387117.COVID.Covid_Deaths` 
 where continent is null 
-group by location
+group by continent
 order by TotalDeathCount desc;
 
 -- World wide numbers
@@ -49,20 +65,13 @@ where continent is null and new_deaths != 0
 group by date
 order by 1, 2;
 
-SELECT  sum(new_cases) as TotalCases, sum(new_deaths) as TotalDeaths, sum(new_deaths)/sum(new_cases)*100 as DeathPercentage
+SELECT sum(new_cases) as TotalCases, sum(new_deaths) as TotalDeaths, sum(new_deaths)/sum(new_cases)*100 as DeathPercentage
 FROM `flowing-encoder-387117.COVID.Covid_Deaths` 
 where continent is null 
 order by 1, 2;
 
--- Looking at Total Population vs Vaccinations
-
-select dth.continent, dth.location, dth.date, dth.population, vac.new_vaccinations
-FROM `flowing-encoder-387117.COVID.Covid_Deaths` dth
-join `flowing-encoder-387117.COVID.Covid_Vaccinations` vac
-  on dth.location = vac.location
-  and dth.date = vac.date
-where dth.continent is not null 
-order by 2, 3; 
+-- Total Population vs Vaccinations
+-- Shows percentage of population that has received at least one Covid Vaccine
 
 select dth.continent, dth.location, dth.date, dth.population, vac.new_vaccinations, sum(vac.new_vaccinations) over (partition by dth.location order by dth.location, dth.date) as RollingPeopleVacinated
 FROM `flowing-encoder-387117.COVID.Covid_Deaths` dth
@@ -72,7 +81,8 @@ join `flowing-encoder-387117.COVID.Covid_Vaccinations` vac
 where dth.continent is not null 
 order by 2, 3; 
 
--- Using CTE
+-- Using CTE to perfrom calculation on partition by in previous query
+
 with popvsvac as(
 select dth.continent, dth.location, dth.date, dth.population, vac.new_vaccinations, sum(vac.new_vaccinations) over (partition by dth.location order by dth.location, dth.date) as RollingPeopleVacinated
 FROM `flowing-encoder-387117.COVID.Covid_Deaths` dth
@@ -84,7 +94,7 @@ where dth.continent is not null
 select *, (RollingPeopleVacinated/population)*100 as RollingVacPercent
 from popvsvac; 
 
--- Temp Table
+-- Temp Table to perform calculation on partition by in previous query
 
 create temp table PercentPopulationVaccinated
 (
